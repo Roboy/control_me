@@ -1,13 +1,19 @@
 #include "flexrayusbinterface/FlexRayHardwareInterface.hpp"
 #include "ros/ros.h"
+#include "std_msgs/Float64.h"
+#include "std_msgs/UInt32.h"
 
 class MyoMotor {
-  /*
+public:
+	/*
   * Setup motor in position, velocity or force control mode.
   * position control mode: 0
   * velocity control mode: 1
   * effort / force control mode: 2
   */
+	void setupMotorCallback(const std_msgs::UInt32::ConstPtr &controlMode) {
+		setupMotor(controlMode->data);
+	}
   bool setupMotor(unsigned int controlMode) {
     enum controllerOptions { position, velocity, effort = 2, force = 2 };
     switch (controlMode) {
@@ -38,6 +44,9 @@ class MyoMotor {
   /*
   * Implements the service to move the motors.
   */
+	void moveMotorCallback(const std_msgs::Float64::ConstPtr &setpoint) {
+		moveMotor(setpoint->data);
+	}
   bool moveMotor(double setpoint) {
     if (flexray.commandframe0[0].sp[0] = setpoint) {
       flexray.updateCommandFrame();
@@ -71,7 +80,7 @@ int main(int argc, char **argv) {
    * You must call one of the versions of ros::init() before using any other
    * part of the ROS system.
    */
-  ros::init(argc, argv, "talker");
+  ros::init(argc, argv, "tester");
 
   /**
    * NodeHandle is the main access point to communications with the ROS system.
@@ -81,4 +90,41 @@ int main(int argc, char **argv) {
    */
   ros::NodeHandle n;
   MyoMotor motor;
+	motor.setupMotor(0);
+
+	//ros::Publisher pub = n.advertise<std_msgs::Float64>("tester", 1000);
+	ros::Subscriber setupMotorSub = n.subscribe("/setupMotor", 1000, &MyoMotor::setupMotorCallback, &motor);
+	ros::Subscriber moveMotorSub = n.subscribe("/moveMotor", 1000, &MyoMotor::moveMotorCallback, &motor);
+	ros::Rate loop_rate(10);
+
+  /**
+   * A count of how many messages we have sent. This is used to create
+   * a unique string for each message.
+   */
+  int count = 0;
+  while (ros::ok())
+  {
+    /**
+     * This is a message object. You stuff it with data, and then publish it.
+     */
+    std_msgs::Float64 msg;
+    msg.data = motor.readDisplacementSensor();
+
+    ROS_INFO("%f", msg.data);
+
+    /**
+     * The publish() function is how you send messages. The parameter
+     * is the message object. The type of this object must agree with the type
+     * given as a template parameter to the advertise<>() call, as was done
+     * in the constructor above.
+     */
+    //pub.publish(msg);
+
+    ros::spinOnce();
+
+    loop_rate.sleep();
+    ++count;
+	}
+
+	return 0;
 }
