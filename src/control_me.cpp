@@ -2,7 +2,7 @@
 #include "flexrayusbinterface/FlexRayHardwareInterface.hpp"
 #include "ros/ros.h"
 #include "common_utilities/Initialize.h"
-#include "std_msgs/Float32MultiArray.h"
+#include "common_utilities/MotorCommand.h"
 
 class MyoMotor {
 public:
@@ -47,16 +47,13 @@ public:
         }
     }
 
-    void controlMe(const common_utilities::InitializeRequest::ConstPtr& msg){
-        uint i = 0;
-        for (auto id:msg->idList) {
-            uint ganglion = id / 4;
-            uint motor = id % 4;
-            if(ganglion<3)
-                flexray.commandframe0[ganglion].sp[motor] = msg->controlmode[i++];
-            else
-                flexray.commandframe1[ganglion-3].sp[motor] = msg->controlmode[i++];
-        }
+    void controlMe(const common_utilities::MotorCommand::ConstPtr& msg){
+        uint ganglion = msg->id / 4;
+        uint motor = msg->id % 4;
+        if(ganglion<3)
+            flexray.commandframe0[ganglion].sp[motor] = msg->setpoint;
+        else
+            flexray.commandframe1[ganglion-3].sp[motor] = msg->setpoint;
         flexray.updateCommandFrame();
         flexray.exchangeData();
     }
@@ -146,4 +143,5 @@ int main(int argc, char **argv) {
      */
     ros::NodeHandle n;
     MyoMotor motor;
+    ros::spin();
 }
